@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Segment Event Sender</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #22263a;
+      --border: #2e3250;
+      --accent: #52a8ff;
+      --accent2: #a78bfa;
+      --green: #22c55e;
+      --red: #ef4444;
+      --yellow: #f59e0b;
+      --text: #e2e8f0;
+      --muted: #8892b0;
+      --radius: 10px;
+      --font: 'Segoe UI', system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100vh;
+      padding: 24px 16px;
+    }
+    .container { max-width: 960px; margin: 0 auto; }
+
+    /* Header */
+    .header {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 28px; padding-bottom: 18px;
+      border-bottom: 1px solid var(--border);
+    }
+    .logo {
+      width: 40px; height: 40px; border-radius: 10px;
+      background: linear-gradient(135deg, #52a8ff, #a78bfa);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+    }
+    .header h1 { font-size: 1.4rem; font-weight: 700; }
+    .header p { font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
+    .badge {
+      margin-left: auto; padding: 4px 10px; border-radius: 20px;
+      font-size: 0.7rem; font-weight: 600; letter-spacing: .5px;
+      background: rgba(82,168,255,0.15); color: var(--accent);
+      border: 1px solid rgba(82,168,255,0.3);
+    }
+
+    /* Grid layout */
+    .grid { display: grid; grid-template-columns: 340px 1fr; gap: 20px; }
+    @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
+
+    /* Card */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+    .card-title {
+      font-size: 0.75rem; font-weight: 700; letter-spacing: 1px;
+      text-transform: uppercase; color: var(--muted);
+      margin-bottom: 16px; display: flex; align-items: center; gap: 6px;
+    }
+
+    /* Form elements */
+    label {
+      display: block; font-size: 0.8rem; color: var(--muted);
+      margin-bottom: 5px; font-weight: 500;
+    }
+    input, select, textarea {
+      width: 100%; background: var(--surface2);
+      border: 1px solid var(--border); border-radius: 7px;
+      color: var(--text); font-family: var(--font);
+      padding: 9px 12px; font-size: 0.88rem;
+      transition: border-color .2s;
+      outline: none;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    textarea { resize: vertical; min-height: 260px; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.82rem; line-height: 1.6; }
+    .form-group { margin-bottom: 16px; }
+
+    .input-row { position: relative; }
+    .toggle-pw {
+      position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; color: var(--muted); cursor: pointer;
+      font-size: 1rem; padding: 0;
+    }
+    .toggle-pw:hover { color: var(--text); }
+
+    select option { background: var(--surface2); }
+
+    /* JSON validator indicator */
+    .json-status {
+      font-size: 0.75rem; margin-top: 5px; height: 16px;
+      display: flex; align-items: center; gap: 5px;
+    }
+    .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .dot.valid { background: var(--green); }
+    .dot.invalid { background: var(--red); }
+    .dot.empty { background: var(--muted); }
+
+    /* Buttons */
+    .btn {
+      width: 100%; padding: 11px; border-radius: 8px;
+      font-size: 0.9rem; font-weight: 600; cursor: pointer;
+      border: none; transition: opacity .2s, transform .1s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-primary {
+      background: linear-gradient(135deg, #52a8ff, #a78bfa);
+      color: #fff;
+    }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-secondary {
+      background: var(--surface2); color: var(--muted);
+      border: 1px solid var(--border); font-size: 0.8rem;
+      padding: 8px;
+    }
+    .btn-secondary:hover { color: var(--text); border-color: var(--accent); }
+
+    .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+
+    /* Dry run toggle */
+    .toggle-row {
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 7px; padding: 9px 12px; margin-bottom: 16px;
+    }
+    .toggle-label { font-size: 0.82rem; color: var(--muted); }
+    .switch { position: relative; width: 38px; height: 20px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      background: var(--border); border-radius: 20px; cursor: pointer;
+      transition: .3s;
+    }
+    .slider:before {
+      content: ''; position: absolute;
+      width: 14px; height: 14px; border-radius: 50%;
+      left: 3px; bottom: 3px; background: #fff; transition: .3s;
+    }
+    .switch input:checked + .slider { background: var(--accent); }
+    .switch input:checked + .slider:before { transform: translateX(18px); }
+
+    /* Alert / toast */
+    .alert {
+      border-radius: 8px; padding: 12px 14px;
+      font-size: 0.83rem; line-height: 1.55;
+      margin-bottom: 16px; display: none;
+      border-left: 3px solid;
+    }
+    .alert.show { display: block; }
+    .alert.success { background: rgba(34,197,94,.1); border-color: var(--green); color: #86efac; }
+    .alert.error   { background: rgba(239,68,68,.1);  border-color: var(--red);   color: #fca5a5; }
+    .alert.warning { background: rgba(245,158,11,.1); border-color: var(--yellow); color: #fcd34d; }
+    .alert.info    { background: rgba(82,168,255,.1); border-color: var(--accent); color: #93c5fd; }
+    .alert-title { font-weight: 700; margin-bottom: 3px; }
+
+    /* Response box */
+    .response-box {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 7px; padding: 12px;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 0.78rem; color: var(--muted);
+      min-height: 60px; max-height: 180px; overflow-y: auto;
+      white-space: pre-wrap; word-break: break-all;
+      display: none;
+    }
+    .response-box.show { display: block; }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 0; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
+    .tab-btn {
+      background: none; border: none; color: var(--muted);
+      padding: 8px 16px; font-size: 0.82rem; cursor: pointer;
+      border-bottom: 2px solid transparent; transition: .2s;
+      font-weight: 600; margin-bottom: -1px;
+    }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab-btn:hover { color: var(--text); }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    /* Session log */
+    .log-entry {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 7px; padding: 10px 12px; margin-bottom: 8px;
+      font-size: 0.78rem;
+    }
+    .log-entry-header {
+      display: flex; align-items: center; gap: 8px;
+      cursor: pointer; user-select: none;
+    }
+    .log-status { font-weight: 700; }
+    .log-status.ok { color: var(--green); }
+    .log-status.err { color: var(--red); }
+    .log-status.dry { color: var(--yellow); }
+    .log-time { color: var(--muted); }
+    .log-type { color: var(--accent2); font-weight: 600; }
+    .log-body { display: none; margin-top: 8px; color: var(--muted); white-space: pre-wrap; font-family: monospace; }
+    .log-body.open { display: block; }
+    .log-chevron { margin-left: auto; color: var(--muted); transition: transform .2s; }
+    .log-chevron.open { transform: rotate(90deg); }
+    .empty-log { color: var(--muted); font-size: 0.82rem; text-align: center; padding: 24px 0; }
+
+    /* Templates */
+    .template-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .tpl-btn {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 7px; padding: 10px; text-align: left;
+      cursor: pointer; transition: border-color .2s;
+    }
+    .tpl-btn:hover { border-color: var(--accent); }
+    .tpl-name { font-size: 0.82rem; font-weight: 700; color: var(--text); }
+    .tpl-desc { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: var(--surface); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* Spinner */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.3);
+      border-top-color: #fff; border-radius: 50%;
+      animation: spin .6s linear infinite; display: none;
+    }
+    .spinner.show { display: block; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">📡</div>
+    <div>
+      <h1>Segment Event Sender</h1>
+      <p>HTTP Tracking API — zero install, browser only</p>
+    </div>
+    <div class="badge">v1.0</div>
+  </div>
+
+  <div class="grid">
+
+    <!-- LEFT PANEL: Config -->
+    <div>
+      <div class="card">
+        <div class="card-title">⚙ Configuration</div>
+
+        <div class="form-group">
+          <label>Write Key</label>
+          <div class="input-row">
+            <input type="password" id="writeKey" placeholder="your_write_key_here" autocomplete="off" />
+            <button class="toggle-pw" onclick="togglePw()" title="Show/hide">👁</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Event Type</label>
+          <select id="eventType" onchange="onEventTypeChange()">
+            <option value="track">track</option>
+            <option value="identify">identify</option>
+            <option value="page">page</option>
+            <option value="screen">screen</option>
+            <option value="group">group</option>
+            <option value="alias">alias</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Segment API Host</label>
+          <select id="apiHost">
+            <option value="https://api.segment.io/v1">api.segment.io (default)</option>
+            <option value="https://events.eu1.segmentapis.com/v1">events.eu1.segmentapis.com (EU)</option>
+            <option value="custom">Custom endpoint…</option>
+          </select>
+        </div>
+
+        <div class="form-group" id="customHostRow" style="display:none">
+          <label>Custom Host URL</label>
+          <input type="text" id="customHost" placeholder="https://your.proxy.host/v1" />
+        </div>
+
+        <div class="toggle-row">
+          <span class="toggle-label">🧪 Dry Run (no HTTP call)</span>
+          <label class="switch">
+            <input type="checkbox" id="dryRun" />
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="toggle-row" style="margin-bottom:16px">
+          <span class="toggle-label">🔄 Auto-inject messageId + sentAt</span>
+          <label class="switch">
+            <input type="checkbox" id="autoInject" checked />
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <button class="btn btn-primary" id="sendBtn" onclick="sendEvent()">
+          <span class="spinner" id="spinner"></span>
+          <span id="sendLabel">🚀 Send Event</span>
+        </button>
+
+        <div class="btn-row">
+          <button class="btn btn-secondary" onclick="clearAll()">🗑 Clear</button>
+          <button class="btn btn-secondary" onclick="copyPayload()">📋 Copy JSON</button>
+        </div>
+
+      </div><!-- /card -->
+    </div><!-- /left -->
+
+    <!-- RIGHT PANEL: Tabs -->
+    <div>
+      <div class="card" style="min-height: 500px;">
+
+        <div class="tabs">
+          <button class="tab-btn active" onclick="switchTab('editor', this)">✏ Payload Editor</button>
+          <button class="tab-btn" onclick="switchTab('templates', this)">📄 Templates</button>
+          <button class="tab-btn" onclick="switchTab('log', this)">📋 Session Log <span id="logBadge"></span></button>
+        </div>
+
+        <!-- Payload Editor tab -->
+        <div class="tab-pane active" id="tab-editor">
+          <div id="alertBox" class="alert"></div>
+
+          <div class="form-group">
+            <label>JSON Payload</label>
+            <textarea id="payload" oninput="validateJson()" spellcheck="false"></textarea>
+            <div class="json-status" id="jsonStatus">
+              <div class="dot empty" id="jsonDot"></div>
+              <span id="jsonMsg" style="color:var(--muted)">Awaiting input…</span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Response</label>
+            <div class="response-box" id="responseBox"></div>
+          </div>
+        </div>
+
+        <!-- Templates tab -->
+        <div class="tab-pane" id="tab-templates">
+          <p style="font-size:.8rem;color:var(--muted);margin-bottom:14px;">Click a template to load it into the editor.</p>
+          <div class="template-grid" id="templateGrid"></div>
+        </div>
+
+        <!-- Log tab -->
+        <div class="tab-pane" id="tab-log">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <span style="font-size:.8rem;color:var(--muted)" id="logCount">0 events</span>
+            <button class="btn btn-secondary" style="width:auto;padding:5px 12px" onclick="clearLog()">Clear log</button>
+          </div>
+          <div id="logList"><div class="empty-log">No events sent yet.</div></div>
+        </div>
+
+      </div>
+    </div><!-- /right -->
+  </div><!-- /grid -->
+
+</div><!-- /container -->
+
+<script>
+// ─────────────────────────────────────────────
+// TEMPLATES
+// ─────────────────────────────────────────────
+const TEMPLATES = {
+  track: {
+    desc: "User action / event",
+    payload: {
+      userId: "user_12345",
+      event: "Button Clicked",
+      properties: {
+        label: "Sign Up",
+        page: "/home",
+        revenue: 0
+      },
+      context: {
+        page: { url: "https://example.com/home" },
+        userAgent: navigator.userAgent
+      }
+    }
+  },
+  identify: {
+    desc: "User traits / profile",
+    payload: {
+      userId: "user_12345",
+      traits: {
+        email: "test@example.com",
+        name: "User Name",
+        plan: "enterprise",
+        createdAt: new Date().toISOString()
+      }
+    }
+  },
+  page: {
+    desc: "Page view",
+    payload: {
+      userId: "user_12345",
+      name: "Home",
+      properties: {
+        title: "Home | My App",
+        url: "https://example.com/home",
+        referrer: ""
+      }
+    }
+  },
+  screen: {
+    desc: "Mobile screen view",
+    payload: {
+      userId: "user_12345",
+      name: "Dashboard",
+      properties: {
+        version: "2.1.0"
+      }
+    }
+  },
+  group: {
+    desc: "Associate user to group/org",
+    payload: {
+      userId: "user_12345",
+      groupId: "org_9999",
+      traits: {
+        name: "Acme Corp",
+        industry: "Technology",
+        employees: 500
+      }
+    }
+  },
+  alias: {
+    desc: "Merge two identities",
+    payload: {
+      userId: "new_user_id",
+      previousId: "anonymous_id_xyz"
+    }
+  }
+};
+
+// Render template grid
+function renderTemplates() {
+  const grid = document.getElementById('templateGrid');
+  grid.innerHTML = Object.entries(TEMPLATES).map(([type, t]) => `
+    <button class="tpl-btn" onclick="loadTemplate('${type}')">
+      <div class="tpl-name">${type}</div>
+      <div class="tpl-desc">${t.desc}</div>
+    </button>
+  `).join('');
+}
+renderTemplates();
+
+function loadTemplate(type) {
+  document.getElementById('eventType').value = type;
+  setPayload(TEMPLATES[type].payload);
+  switchTab('editor', document.querySelector('.tab-btn'));
+  document.querySelectorAll('.tab-btn')[0].click();
+}
+
+function onEventTypeChange() {
+  const type = document.getElementById('eventType').value;
+  if (TEMPLATES[type]) setPayload(TEMPLATES[type].payload);
+}
+
+function setPayload(obj) {
+  document.getElementById('payload').value = JSON.stringify(obj, null, 2);
+  validateJson();
+}
+
+// Load default on start
+setPayload(TEMPLATES.track.payload);
+
+// ─────────────────────────────────────────────
+// JSON VALIDATOR
+// ─────────────────────────────────────────────
+function validateJson() {
+  const raw = document.getElementById('payload').value.trim();
+  const dot = document.getElementById('jsonDot');
+  const msg = document.getElementById('jsonMsg');
+  if (!raw) {
+    dot.className = 'dot empty'; msg.textContent = 'Awaiting input…'; msg.style.color = 'var(--muted)'; return null;
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    dot.className = 'dot valid'; msg.textContent = '✓ Valid JSON'; msg.style.color = 'var(--green)';
+    return parsed;
+  } catch (e) {
+    dot.className = 'dot invalid'; msg.textContent = '✗ ' + e.message; msg.style.color = 'var(--red)';
+    return null;
+  }
+}
+
+// ─────────────────────────────────────────────
+// UI HELPERS
+// ─────────────────────────────────────────────
+function showAlert(type, title, body) {
+  const el = document.getElementById('alertBox');
+  el.className = `alert show ${type}`;
+  el.innerHTML = `<div class="alert-title">${title}</div>${body}`;
+}
+function hideAlert() {
+  document.getElementById('alertBox').className = 'alert';
+}
+function showResponse(text) {
+  const box = document.getElementById('responseBox');
+  box.textContent = text; box.className = 'response-box show';
+}
+function hideResponse() {
+  document.getElementById('responseBox').className = 'response-box';
+}
+function setBusy(busy) {
+  document.getElementById('sendBtn').disabled = busy;
+  document.getElementById('spinner').className = busy ? 'spinner show' : 'spinner';
+  document.getElementById('sendLabel').textContent = busy ? 'Sending…' : '🚀 Send Event';
+}
+function togglePw() {
+  const f = document.getElementById('writeKey');
+  f.type = f.type === 'password' ? 'text' : 'password';
+}
+function clearAll() {
+  document.getElementById('payload').value = '';
+  document.getElementById('writeKey').value = '';
+  hideAlert(); hideResponse(); validateJson();
+}
+function copyPayload() {
+  const v = document.getElementById('payload').value;
+  if (!v) return;
+  navigator.clipboard.writeText(v).then(() => showAlert('info', 'Copied!', 'Payload copied to clipboard.'));
+}
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  // btn could be the clicked element
+  if (btn && btn.classList) btn.classList.add('active');
+}
+document.getElementById('apiHost').addEventListener('change', function() {
+  document.getElementById('customHostRow').style.display = this.value === 'custom' ? 'block' : 'none';
+});
+
+// ─────────────────────────────────────────────
+// SESSION LOG
+// ─────────────────────────────────────────────
+let logEntries = [];
+function addLog(entry) {
+  logEntries.unshift(entry);
+  const count = logEntries.length;
+  document.getElementById('logCount').textContent = `${count} event${count !== 1 ? 's' : ''}`;
+  document.getElementById('logBadge').textContent = ` (${count})`;
+  renderLog();
+}
+function renderLog() {
+  const list = document.getElementById('logList');
+  if (!logEntries.length) { list.innerHTML = '<div class="empty-log">No events sent yet.</div>'; return; }
+  list.innerHTML = logEntries.map((e, i) => `
+    <div class="log-entry">
+      <div class="log-entry-header" onclick="toggleLogBody(${i})">
+        <span class="log-status ${e.statusClass}">${e.statusLabel}</span>
+        <span class="log-type">${e.type}</span>
+        <span class="log-time">${e.time}</span>
+        <span class="log-chevron" id="chev-${i}">▶</span>
+      </div>
+      <div class="log-body" id="body-${i}">${escHtml(e.body)}</div>
+    </div>
+  `).join('');
+}
+function toggleLogBody(i) {
+  const body = document.getElementById('body-' + i);
+  const chev = document.getElementById('chev-' + i);
+  body.classList.toggle('open');
+  chev.classList.toggle('open');
+}
+function clearLog() {
+  logEntries = [];
+  document.getElementById('logCount').textContent = '0 events';
+  document.getElementById('logBadge').textContent = '';
+  renderLog();
+}
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ─────────────────────────────────────────────
+// SEND EVENT
+// ─────────────────────────────────────────────
+async function sendEvent() {
+  hideAlert(); hideResponse();
+
+  // Validate write key
+  const writeKey = document.getElementById('writeKey').value.trim();
+  if (!writeKey) {
+    showAlert('error', 'Missing Write Key', 'Enter your Segment Write Key in the Configuration panel.');
+    return;
+  }
+
+  // Validate JSON
+  let payload = validateJson();
+  if (!payload) {
+    showAlert('error', 'Invalid JSON', 'Fix the JSON syntax errors in the payload before sending.');
+    return;
+  }
+
+  // Validate userId or anonymousId
+  if (!payload.userId && !payload.anonymousId) {
+    showAlert('warning', 'Missing Identity',
+      'Payload must include either <strong>userId</strong> or <strong>anonymousId</strong>. ' +
+      'Add one of these fields to avoid a 400 error from Segment.');
+    return;
+  }
+
+  // Auto-inject
+  if (document.getElementById('autoInject').checked) {
+    if (!payload.messageId) payload.messageId = uuidv4();
+    if (!payload.sentAt) payload.sentAt = new Date().toISOString();
+  }
+
+  const eventType = document.getElementById('eventType').value;
+  const isDry = document.getElementById('dryRun').checked;
+
+  const finalPayload = JSON.stringify(payload, null, 2);
+  const now = new Date().toLocaleTimeString();
+
+  // DRY RUN
+  if (isDry) {
+    showAlert('warning', '🧪 Dry Run — No request sent',
+      `Would POST to: <strong>${getHost()}/${eventType}</strong><br/>Payload is valid and ready.`);
+    showResponse('// DRY RUN — Payload that would be sent:\n' + finalPayload);
+    addLog({ type: eventType, statusLabel: 'DRY', statusClass: 'dry', time: now, body: finalPayload });
+    return;
+  }
+
+  setBusy(true);
+  const url = `${getHost()}/${eventType}`;
+  const auth = btoa(writeKey + ':');
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Basic ${auth}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const responseText = await res.text().catch(() => '');
+    let responseJson;
+    try { responseJson = JSON.parse(responseText); } catch { responseJson = responseText; }
+
+    showResponse(`HTTP ${res.status} ${res.statusText}\n\n${typeof responseJson === 'string' ? responseJson : JSON.stringify(responseJson, null, 2)}`);
+
+    if (res.ok) {
+      showAlert('success', '✅ Event Accepted',
+        `<strong>${eventType}</strong> event sent successfully (HTTP ${res.status}).` +
+        (payload.messageId ? `<br/>messageId: <code>${payload.messageId}</code>` : ''));
+      addLog({ type: eventType, statusLabel: `✓ ${res.status}`, statusClass: 'ok', time: now, body: finalPayload });
+    } else {
+      const hint = getErrorHint(res.status, responseJson);
+      showAlert('error', `❌ HTTP ${res.status} — ${res.statusText}`, hint);
+      addLog({ type: eventType, statusLabel: `✗ ${res.status}`, statusClass: 'err', time: now, body: finalPayload });
+    }
+
+  } catch (err) {
+    // Network / CORS error
+    let detail = err.message;
+    let hint = '';
+    if (err.message.includes('fetch') || err.message.includes('Network') || err.message.includes('CORS')) {
+      hint = `<br/><br/><strong>Possible causes:</strong><ul style="margin:6px 0 0 16px">
+        <li>CORS restriction — Segment's API blocks browser fetch from local files in some browsers.</li>
+        <li>Try opening this file via a local server: <code>python -m http.server 8080</code> then visit <code>localhost:8080</code></li>
+        <li>Or use the <strong>Segment API from Postman</strong> / cURL as a fallback.</li>
+      </ul>`;
+    }
+    showAlert('error', '🌐 Network Error', `<code>${detail}</code>${hint}`);
+    showResponse('Error: ' + detail);
+    addLog({ type: eventType, statusLabel: '✗ ERR', statusClass: 'err', time: now, body: finalPayload });
+  } finally {
+    setBusy(false);
+  }
+}
+
+function getHost() {
+  const sel = document.getElementById('apiHost').value;
+  if (sel === 'custom') return document.getElementById('customHost').value.replace(/\/$/, '');
+  return sel;
+}
+
+function getErrorHint(status, body) {
+  const bodyStr = typeof body === 'string' ? body : JSON.stringify(body);
+  if (status === 400) return `<strong>Bad Request.</strong> ${bodyStr}<br/>
+    Common fixes: ensure <code>userId</code> or <code>anonymousId</code> is present; 
+    <code>event</code> is required for <em>track</em>.`;
+  if (status === 401) return `<strong>Unauthorized.</strong> Your Write Key is invalid or incorrect. 
+    Check the key in your Segment source settings.`;
+  if (status === 403) return `<strong>Forbidden.</strong> The Write Key may not have permission 
+    for this source or endpoint.`;
+  if (status === 429) return `<strong>Rate Limited.</strong> You have exceeded Segment's request limit. 
+    Wait a moment and retry.`;
+  if (status >= 500) return `<strong>Segment Server Error (${status}).</strong> 
+    Check <a href="https://status.segment.com" target="_blank" style="color:var(--accent)">status.segment.com</a> 
+    for incidents.`;
+  return bodyStr;
+}
+
+// ─────────────────────────────────────────────
+// UUID v4
+// ─────────────────────────────────────────────
+function uuidv4() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random() * 16 | 0;
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+  });
+}
+</script>
+</body>
+</html>
